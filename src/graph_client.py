@@ -15,12 +15,12 @@ import requests
 from dotenv import load_dotenv
 
 # =============================================================================
-# CONFIGURATIE
+# CONFIGURATION
 # =============================================================================
 
 logger = logging.getLogger(__name__)
 
-# Laad .env bestand
+# Load .env file
 ENV_FILE = Path(__file__).parent.parent / ".env"
 load_dotenv(ENV_FILE)
 
@@ -33,7 +33,7 @@ AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 SCOPES = ["https://graph.microsoft.com/.default"]
 GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0"
 
-# Token cache met expiry
+# Token cache with expiry
 _token_cache: Optional[str] = None
 _token_expiry: float = 0  # Unix timestamp
 
@@ -47,18 +47,18 @@ REQUEST_TIMEOUT = 30
 
 def get_access_token() -> Optional[str]:
     """
-    Verkrijg access token via client credentials (app-only).
-    Token wordt gecached voor hergebruik met expiry check.
+    Obtain access token via client credentials (app-only).
+    Token is cached for reuse with expiry check.
     """
     import time
     global _token_cache, _token_expiry
 
-    # Check of cached token nog geldig is (met 5 min marge)
+    # Check if cached token is still valid (with 5 min margin)
     if _token_cache and time.time() < (_token_expiry - 300):
         return _token_cache
 
     if not all([CLIENT_ID, TENANT_ID, CLIENT_SECRET]):
-        logger.error("Azure credentials niet geconfigureerd in .env")
+        logger.error("Azure credentials not configured in .env")
         return None
 
     app = msal.ConfidentialClientApplication(
@@ -71,10 +71,10 @@ def get_access_token() -> Optional[str]:
 
     if "access_token" in result:
         _token_cache = result["access_token"]
-        # Token expiry opslaan (default 3600 sec als niet meegegeven)
+        # Store token expiry (default 3600 sec if not provided)
         expires_in = result.get("expires_in", 3600)
         _token_expiry = time.time() + expires_in
-        logger.info(f"Access token verkregen (expiry: {expires_in}s)")
+        logger.info(f"Access token obtained (expiry: {expires_in}s)")
         return _token_cache
     else:
         logger.error(f"Auth failed: {result.get('error_description', 'Unknown')}")
@@ -82,7 +82,7 @@ def get_access_token() -> Optional[str]:
 
 
 def clear_token_cache():
-    """Clear de token cache (voor refresh)."""
+    """Clear the token cache (for refresh)."""
     global _token_cache, _token_expiry
     _token_cache = None
     _token_expiry = 0
@@ -94,14 +94,14 @@ def clear_token_cache():
 
 def graph_get(endpoint: str, params: dict = None) -> Optional[dict]:
     """
-    Maak een GET request naar Graph API.
+    Make a GET request to Graph API.
 
     Args:
-        endpoint: API endpoint (zonder base URL)
+        endpoint: API endpoint (without base URL)
         params: Query parameters
 
     Returns:
-        JSON response of None bij fout
+        JSON response or None on error
     """
     token = get_access_token()
     if not token:
@@ -113,7 +113,7 @@ def graph_get(endpoint: str, params: dict = None) -> Optional[dict]:
     try:
         response = requests.get(url, headers=headers, params=params, timeout=REQUEST_TIMEOUT)
     except requests.exceptions.Timeout:
-        logger.error(f"Request timeout na {REQUEST_TIMEOUT}s: {endpoint}")
+        logger.error(f"Request timeout after {REQUEST_TIMEOUT}s: {endpoint}")
         return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Request failed: {e}")
@@ -127,7 +127,7 @@ def graph_get(endpoint: str, params: dict = None) -> Optional[dict]:
 
 
 # =============================================================================
-# EMAIL FUNCTIES
+# EMAIL FUNCTIONS
 # =============================================================================
 
 def search_emails(
@@ -141,22 +141,22 @@ def search_emails(
     limit: int = 50
 ) -> list[dict]:
     """
-    Zoek emails met diverse filters.
+    Search emails with various filters.
 
     Args:
-        query: Algemene zoekterm
-        field: Waar te zoeken (from, to, cc, subject, body, all)
-        from_address: Filter op afzender
-        to_address: Filter op ontvanger
-        subject_contains: Onderwerp bevat
-        since: Vanaf datum (YYYY-MM-DD)
-        until: Tot datum (YYYY-MM-DD)
-        limit: Maximum resultaten
+        query: General search term
+        field: Where to search (from, to, cc, subject, body, all)
+        from_address: Filter by sender
+        to_address: Filter by recipient
+        subject_contains: Subject contains
+        since: From date (YYYY-MM-DD)
+        until: To date (YYYY-MM-DD)
+        limit: Maximum results
 
     Returns:
-        Lijst van email objects
+        List of email objects
     """
-    # Bouw search query
+    # Build search query
     search_parts = []
 
     if query:
@@ -195,12 +195,12 @@ def search_emails(
         "$orderby": "receivedDateTime desc"
     }
 
-    # Voeg $search alleen toe als er een zoekterm is
+    # Only add $search if there is a search term
     if search_query:
         params["$search"] = search_query
 
     all_emails = []
-    fetch_limit = limit * 3  # Overfetch voor client-side filtering
+    fetch_limit = limit * 3  # Overfetch for client-side filtering
 
     while endpoint and len(all_emails) < fetch_limit:
         data = graph_get(endpoint, params)
@@ -210,7 +210,7 @@ def search_emails(
         emails = data.get("value", [])
         all_emails.extend(emails)
 
-        # Volgende pagina
+        # Next page
         next_link = data.get("@odata.nextLink")
         if next_link:
             endpoint = next_link.replace(GRAPH_ENDPOINT, "")
@@ -218,7 +218,7 @@ def search_emails(
         else:
             break
 
-    # Client-side filtering voor exacte matches
+    # Client-side filtering for exact matches
     filtered = []
     for email in all_emails:
         if _email_matches(email, query, field, from_address, to_address, subject_contains, since, until):
@@ -239,7 +239,7 @@ def _email_matches(
     since: str,
     until: str
 ) -> bool:
-    """Check of email voldoet aan alle filters."""
+    """Check if email matches all filters."""
     # Query match
     if query:
         query_lower = query.lower()
@@ -276,7 +276,7 @@ def _email_matches(
 
 
 def _format_email_summary(email: dict) -> dict:
-    """Format email voor output."""
+    """Format email for output."""
     return {
         "id": email.get("id"),
         "subject": email.get("subject", ""),
@@ -295,14 +295,14 @@ def _format_email_summary(email: dict) -> dict:
 
 def get_email_body(email_id: str, format: str = "text") -> Optional[dict]:
     """
-    Haal volledige email body op.
+    Get full email body.
 
     Args:
-        email_id: ID van de email
-        format: "text" of "html"
+        email_id: ID of the email
+        format: "text" or "html"
 
     Returns:
-        Email met volledige body
+        Email with full body
     """
     endpoint = f"/users/{TARGET_USER}/messages/{email_id}"
     params = {
@@ -335,29 +335,29 @@ def get_email_body(email_id: str, format: str = "text") -> Optional[dict]:
 
 def _is_valid_conversation_id(conversation_id: str) -> bool:
     """
-    Valideer conversation_id format om OData injection te voorkomen.
-    Microsoft Graph conversation IDs zijn base64-encoded strings.
+    Validate conversation_id format to prevent OData injection.
+    Microsoft Graph conversation IDs are base64-encoded strings.
     """
     if not conversation_id or len(conversation_id) > 500:
         return False
-    # Alleen base64 karakters toegestaan (inclusief URL-safe varianten)
+    # Only base64 characters allowed (including URL-safe variants)
     return bool(re.match(r'^[A-Za-z0-9+/=_-]+$', conversation_id))
 
 
 def get_conversation(conversation_id: str, include_body: bool = True) -> Optional[dict]:
     """
-    Haal alle emails in een conversatie op.
+    Get all emails in a conversation.
 
     Args:
         conversation_id: Conversation ID
-        include_body: Of volledige body mee te geven
+        include_body: Whether to include full body
 
     Returns:
-        Conversatie met alle berichten
+        Conversation with all messages
     """
-    # Valideer conversation_id tegen OData injection
+    # Validate conversation_id against OData injection
     if not _is_valid_conversation_id(conversation_id):
-        logger.warning(f"Ongeldige conversation_id format: {conversation_id[:50]}...")
+        logger.warning(f"Invalid conversation_id format: {conversation_id[:50]}...")
         return None
 
     endpoint = f"/users/{TARGET_USER}/messages"
@@ -377,7 +377,7 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
     if not messages:
         return None
 
-    # Verzamel participants
+    # Collect participants
     participants = set()
     for msg in messages:
         from_addr = msg.get("from", {}).get("emailAddress", {}).get("address", "")
@@ -412,20 +412,20 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
         "subject": messages[0].get("subject", "") if messages else "",
         "participants": sorted(list(participants)),
         "message_count": len(messages),
-        "date_range": f"{min(dates)} tot {max(dates)}" if dates else "",
+        "date_range": f"{min(dates)} to {max(dates)}" if dates else "",
         "messages": formatted_messages
     }
 
 
 def get_attachments(email_id: str) -> list[dict]:
     """
-    Lijst attachments van een email.
+    List attachments of an email.
 
     Args:
-        email_id: ID van de email
+        email_id: ID of the email
 
     Returns:
-        Lijst van attachments
+        List of attachments
     """
     endpoint = f"/users/{TARGET_USER}/messages/{email_id}/attachments"
     data = graph_get(endpoint)
@@ -446,14 +446,14 @@ def get_attachments(email_id: str) -> list[dict]:
 
 
 def _html_to_text(html_content: str) -> str:
-    """Converteer HTML naar plain text."""
-    # Verwijder style tags
+    """Convert HTML to plain text."""
+    # Remove style tags
     text = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL)
-    # Verwijder script tags
+    # Remove script tags
     text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL)
-    # Vervang block elements door newlines
+    # Replace block elements with newlines
     text = re.sub(r'<(br|p|div|tr|li)[^>]*>', '\n', text, flags=re.IGNORECASE)
-    # Verwijder alle overige tags
+    # Remove all other tags
     text = re.sub(r'<[^>]+>', '', text)
     # Decode HTML entities
     text = html.unescape(text)
@@ -468,11 +468,11 @@ def _html_to_text(html_content: str) -> str:
 # =============================================================================
 
 def test_connection():
-    """Test de Graph API verbinding."""
+    """Test the Graph API connection."""
     token = get_access_token()
     if token:
         print(f"Connection OK - Target: {TARGET_USER}")
-        # Test een simpele query
+        # Test a simple query
         emails = search_emails("", limit=1)
         if emails:
             print(f"Test email: {emails[0].get('subject', 'N/A')}")

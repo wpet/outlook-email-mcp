@@ -1,44 +1,44 @@
 # Outlook Email MCP Server
 
-Een MCP (Model Context Protocol) server waarmee Claude Code direct Outlook emails kan doorzoeken en analyseren via Microsoft Graph API.
+An MCP (Model Context Protocol) server that enables Claude Code to search and analyze Outlook emails via Microsoft Graph API.
 
 ## Features
 
-- **Email zoeken** - Zoek op afzender, ontvanger, onderwerp, datum
-- **Conversatie ophalen** - Haal complete email threads op
-- **Email body lezen** - Volledige email inhoud (text of HTML)
-- **Bijlagen bekijken** - Lijst attachments van emails
+- **Search emails** - Search by sender, recipient, subject, date
+- **Get conversations** - Retrieve complete email threads
+- **Read email body** - Full email content (text or HTML)
+- **List attachments** - View email attachments
 
-## Installatie
+## Installation
 
-### 1. Clone de repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/wpet/outlook-email-mcp.git
 cd outlook-email-mcp
 ```
 
-### 2. Maak virtual environment
+### 2. Create virtual environment
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
-# of: venv\Scripts\activate  # Windows
+# or: venv\Scripts\activate  # Windows
 ```
 
-### 3. Installeer dependencies
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configureer Azure credentials
+### 4. Configure Azure credentials
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` met je Azure credentials:
+Edit `.env` with your Azure credentials:
 
 ```env
 AZURE_CLIENT_ID=your-client-id
@@ -47,9 +47,9 @@ AZURE_CLIENT_SECRET=your-client-secret
 AZURE_TARGET_USER=user@domain.com
 ```
 
-### 5. Configureer Claude Code
+### 5. Configure Claude Code
 
-Kopieer `.mcp.json.example` naar `.mcp.json` en pas de paden aan:
+Copy `.mcp.json.example` to `.mcp.json` and adjust the paths:
 
 ```bash
 cp .mcp.json.example .mcp.json
@@ -62,104 +62,104 @@ Edit `.mcp.json`:
   "mcpServers": {
     "outlook-email": {
       "command": "python3",
-      "args": ["/volledig/pad/naar/outlook-email-mcp/mcp_server/server.py"],
+      "args": ["/full/path/to/outlook-email-mcp/mcp_server/server.py"],
       "env": {
-        "PYTHONPATH": "/volledig/pad/naar/outlook-email-mcp"
+        "PYTHONPATH": "/full/path/to/outlook-email-mcp"
       }
     }
   }
 }
 ```
 
-### 6. Herstart Claude Code
+### 6. Restart Claude Code
 
-Na configuratie, herstart Claude Code om de MCP server te laden.
+After configuration, restart Claude Code to load the MCP server.
 
 ## Azure App Registration
 
-### Stap 1: Maak App Registration
+### Step 1: Create App Registration
 
-1. Ga naar [Azure Portal](https://portal.azure.com)
-2. Zoek naar "App registrations"
-3. Klik "New registration"
-4. Naam: `outlook-email-mcp`
+1. Go to [Azure Portal](https://portal.azure.com)
+2. Search for "App registrations"
+3. Click "New registration"
+4. Name: `outlook-email-mcp`
 5. Account type: "Single tenant"
-6. Klik "Register"
+6. Click "Register"
 
-### Stap 2: Noteer IDs
+### Step 2: Note the IDs
 
 - **Application (client) ID** → `AZURE_CLIENT_ID`
 - **Directory (tenant) ID** → `AZURE_TENANT_ID`
 
-### Stap 3: Maak Client Secret
+### Step 3: Create Client Secret
 
-1. Ga naar "Certificates & secrets"
-2. Klik "New client secret"
-3. Kopieer de waarde → `AZURE_CLIENT_SECRET`
+1. Go to "Certificates & secrets"
+2. Click "New client secret"
+3. Copy the value → `AZURE_CLIENT_SECRET`
 
-### Stap 4: Configureer API Permissions
+### Step 4: Configure API Permissions
 
-1. Ga naar "API permissions"
-2. Klik "Add a permission"
-3. Kies "Microsoft Graph"
-4. Kies "Application permissions"
-5. Voeg toe:
-   - `Mail.Read` - Emails lezen
-   - `User.Read.All` - Gebruikers opzoeken
-6. Klik "Grant admin consent"
+1. Go to "API permissions"
+2. Click "Add a permission"
+3. Choose "Microsoft Graph"
+4. Choose "Application permissions"
+5. Add:
+   - `Mail.Read` - Read emails
+   - `User.Read.All` - Look up users
+6. Click "Grant admin consent"
 
-## Gebruik
+## Usage
 
-Na installatie zijn deze tools beschikbaar in Claude Code:
+After installation, these tools are available in Claude Code:
 
-| Tool | Beschrijving |
+| Tool | Description |
 |------|-------------|
-| `search_emails` | Zoek emails met filters (from, to, subject, date) |
-| `get_conversation` | Haal complete email thread op |
-| `get_email_body` | Lees volledige email inhoud |
-| `list_attachments` | Bekijk bijlagen van een email |
+| `search_emails` | Search emails with filters (from, to, subject, date) |
+| `get_conversation` | Retrieve complete email thread |
+| `get_email_body` | Read full email content |
+| `list_attachments` | View attachments of an email |
 
-### Voorbeelden
+### Examples
 
 ```
-"Zoek alle emails van jan@example.com over facturen"
+"Search all emails from jan@example.com about invoices"
 
-"Haal de conversatie op over project X"
+"Get the conversation about project X"
 
-"Welke bijlagen zitten er in de laatste email van finance?"
+"What attachments are in the last email from finance?"
 ```
 
-## Verificatie
+## Verification
 
-Test of de MCP server correct is geconfigureerd:
+Test if the MCP server is configured correctly:
 
 ```bash
 # In Claude Code
 /mcp
 ```
 
-Je zou `outlook-email` moeten zien in de lijst van actieve servers.
+You should see `outlook-email` in the list of active servers.
 
-## Bestanden
+## Files
 
 ```
 outlook-email-mcp/
 ├── src/
 │   └── graph_client.py      # Microsoft Graph API client
 ├── mcp_server/
-│   └── server.py            # MCP server implementatie
-├── .env.example             # Template voor credentials
-├── .mcp.json.example        # Template voor Claude Code config
+│   └── server.py            # MCP server implementation
+├── .env.example             # Template for credentials
+├── .mcp.json.example        # Template for Claude Code config
 └── requirements.txt         # Python dependencies
 ```
 
 ## Security
 
-- Credentials worden geladen uit `.env` (niet in git)
-- Request timeout: 30 seconden
-- Token caching met expiry validatie
-- OData injection preventie op conversation_id
+- Credentials are loaded from `.env` (not in git)
+- Request timeout: 30 seconds
+- Token caching with expiry validation
+- OData injection prevention on conversation_id
 
-## Licentie
+## License
 
 MIT

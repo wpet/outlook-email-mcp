@@ -1,4 +1,4 @@
-# Secrets - NOOIT COMMITTEN
+# Secrets - NEVER COMMIT
 .env
 .env.*
 !.env.example
@@ -31,7 +31,7 @@ data/exports/
 .DS_Store
 Thumbs.db
 
-# Coda (interne development docs)
+# Coda (internal development docs)
 .coda/
 PLAN.md
 

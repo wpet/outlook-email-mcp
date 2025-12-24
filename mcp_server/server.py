@@ -2,13 +2,13 @@
 """
 Outlook Email MCP Server
 
-MCP server die email zoek- en analysefuncties aanbiedt aan Claude Code.
-Hiermee kan Claude emails doorzoeken en conversaties analyseren.
+MCP server that provides email search and analysis capabilities to Claude Code.
+Enables Claude to search emails and analyze conversations.
 
-Gebruik:
+Usage:
     python mcp_server/server.py
 
-Configureer in .mcp.json om te gebruiken in Claude Code.
+Configure in .mcp.json to use in Claude Code.
 """
 
 import sys
@@ -17,7 +17,7 @@ import logging
 import asyncio
 from pathlib import Path
 
-# Voeg src toe aan path
+# Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from mcp.server import Server
@@ -51,60 +51,60 @@ server = Server("outlook-email")
 
 @server.list_tools()
 async def list_tools() -> list[Tool]:
-    """Retourneer beschikbare tools."""
+    """Return available tools."""
     return [
         Tool(
             name="search_emails",
-            description="""Zoek Outlook emails met diverse filters.
+            description="""Search Outlook emails with various filters.
 
-Gebruik deze tool om emails te vinden op basis van:
-- Email adres (from/to/cc)
-- Onderwerp
-- Datum range
-- Zoekterm in alle velden
+Use this tool to find emails based on:
+- Email address (from/to/cc)
+- Subject
+- Date range
+- Search term in all fields
 
-Retourneert een lijst van emails met subject, afzender, datum en preview.""",
+Returns a list of emails with subject, sender, date and preview.""",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Zoekterm (email adres, domein, of tekst). Bijv: '@qualitymasters.com' of 'maarten@example.com'"
+                        "description": "Search term (email address, domain, or text). E.g.: '@company.com' or 'john@example.com'"
                     },
                     "field": {
                         "type": "string",
                         "enum": ["from", "to", "cc", "subject", "body", "all"],
                         "default": "all",
-                        "description": "In welk veld te zoeken"
+                        "description": "Which field to search"
                     },
                     "from_address": {
                         "type": "string",
-                        "description": "Filter op specifieke afzender (optioneel)"
+                        "description": "Filter by specific sender (optional)"
                     },
                     "to_address": {
                         "type": "string",
-                        "description": "Filter op specifieke ontvanger (optioneel)"
+                        "description": "Filter by specific recipient (optional)"
                     },
                     "subject_contains": {
                         "type": "string",
-                        "description": "Onderwerp moet dit bevatten (optioneel)"
+                        "description": "Subject must contain this (optional)"
                     },
                     "since": {
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                        "description": "Emails vanaf deze datum (YYYY-MM-DD)"
+                        "description": "Emails from this date (YYYY-MM-DD)"
                     },
                     "until": {
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                        "description": "Emails tot deze datum (YYYY-MM-DD)"
+                        "description": "Emails until this date (YYYY-MM-DD)"
                     },
                     "limit": {
                         "type": "integer",
                         "default": 20,
                         "minimum": 1,
                         "maximum": 100,
-                        "description": "Maximum aantal resultaten"
+                        "description": "Maximum number of results"
                     }
                 },
                 "required": []
@@ -112,23 +112,23 @@ Retourneert een lijst van emails met subject, afzender, datum en preview.""",
         ),
         Tool(
             name="get_conversation",
-            description="""Haal een volledige email conversatie op.
+            description="""Get a complete email conversation.
 
-Gebruik deze tool nadat je met search_emails een relevante email hebt gevonden.
-Geef de conversation_id mee om alle emails in die thread te krijgen.
+Use this tool after finding a relevant email with search_emails.
+Provide the conversation_id to get all emails in that thread.
 
-Retourneert alle berichten chronologisch met volledige body tekst.""",
+Returns all messages chronologically with full body text.""",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "conversation_id": {
                         "type": "string",
-                        "description": "Conversation ID (uit search_emails resultaat)"
+                        "description": "Conversation ID (from search_emails result)"
                     },
                     "include_body": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Volledige body meegeven (default: true)"
+                        "description": "Include full body (default: true)"
                     }
                 },
                 "required": ["conversation_id"]
@@ -136,21 +136,21 @@ Retourneert alle berichten chronologisch met volledige body tekst.""",
         ),
         Tool(
             name="get_email_body",
-            description="""Haal de volledige inhoud van een specifieke email op.
+            description="""Get the full content of a specific email.
 
-Gebruik deze tool om de complete tekst van een email te lezen.""",
+Use this tool to read the complete text of an email.""",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "email_id": {
                         "type": "string",
-                        "description": "Email ID (uit search_emails resultaat)"
+                        "description": "Email ID (from search_emails result)"
                     },
                     "format": {
                         "type": "string",
                         "enum": ["text", "html"],
                         "default": "text",
-                        "description": "Output formaat"
+                        "description": "Output format"
                     }
                 },
                 "required": ["email_id"]
@@ -158,9 +158,9 @@ Gebruik deze tool om de complete tekst van een email te lezen.""",
         ),
         Tool(
             name="list_attachments",
-            description="""Lijst alle bijlagen van een email.
+            description="""List all attachments of an email.
 
-Toont naam, grootte en type van elke bijlage.""",
+Shows name, size and type of each attachment.""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -177,7 +177,7 @@ Toont naam, grootte en type van elke bijlage.""",
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    """Voer een tool uit."""
+    """Execute a tool."""
     logger.info(f"Tool call: {name} with {arguments}")
 
     try:
@@ -188,7 +188,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 type="text",
                 text=json.dumps({
                     "error": "Authentication failed",
-                    "message": "Kon niet authenticeren met Microsoft Graph. Check .env configuratie."
+                    "message": "Could not authenticate with Microsoft Graph. Check .env configuration."
                 }, ensure_ascii=False)
             )]
 
@@ -293,7 +293,7 @@ async def handle_list_attachments(args: dict) -> dict:
 # =============================================================================
 
 async def main():
-    """Start de MCP server."""
+    """Start the MCP server."""
     logger.info("Starting Outlook Email MCP Server...")
 
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
