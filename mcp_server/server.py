@@ -28,6 +28,7 @@ from src.graph_client import (
     search_emails,
     get_email_body,
     get_conversation,
+    get_conversations_bulk,
     get_attachments,
     get_access_token
 )
@@ -135,6 +136,31 @@ Returns all messages chronologically with full body text.""",
             }
         ),
         Tool(
+            name="get_conversations_bulk",
+            description="""Get multiple email conversations in parallel.
+
+Use this tool when you need to fetch several conversations at once.
+Much faster than calling get_conversation multiple times sequentially.
+
+Returns all conversations with timing statistics.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "conversation_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of conversation IDs to fetch"
+                    },
+                    "include_body": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Include full body (default: true)"
+                    }
+                },
+                "required": ["conversation_ids"]
+            }
+        ),
+        Tool(
             name="get_email_body",
             description="""Get the full content of a specific email.
 
@@ -197,6 +223,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = await handle_search_emails(arguments)
         elif name == "get_conversation":
             result = await handle_get_conversation(arguments)
+        elif name == "get_conversations_bulk":
+            result = await handle_get_conversations_bulk(arguments)
         elif name == "get_email_body":
             result = await handle_get_email_body(arguments)
         elif name == "list_attachments":
@@ -256,6 +284,22 @@ async def handle_get_conversation(args: dict) -> dict:
         return {"error": "Conversation not found", "conversation_id": conversation_id}
 
     return conversation
+
+
+async def handle_get_conversations_bulk(args: dict) -> dict:
+    """Handle get_conversations_bulk tool."""
+    conversation_ids = args.get("conversation_ids")
+    if not conversation_ids:
+        return {"error": "conversation_ids is required"}
+
+    if not isinstance(conversation_ids, list):
+        return {"error": "conversation_ids must be a list"}
+
+    if len(conversation_ids) > 20:
+        return {"error": "Maximum 20 conversations per request"}
+
+    include_body = args.get("include_body", True)
+    return get_conversations_bulk(conversation_ids, include_body)
 
 
 async def handle_get_email_body(args: dict) -> dict:

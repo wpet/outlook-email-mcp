@@ -99,6 +99,55 @@ def cache_stats() -> dict:
 
 
 # =============================================================================
+# PARALLEL REQUESTS
+# =============================================================================
+
+# Max concurrent requests (respect rate limits)
+MAX_PARALLEL_REQUESTS = 5
+
+
+def _parallel_fetch(fetch_fn, items: list, max_workers: int = None) -> list:
+    """
+    Execute fetch function in parallel for multiple items.
+
+    Args:
+        fetch_fn: Function to call for each item (takes single item as arg)
+        items: List of items to process
+        max_workers: Max concurrent threads (default: MAX_PARALLEL_REQUESTS)
+
+    Returns:
+        List of results in same order as items
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    if not items:
+        return []
+
+    max_workers = max_workers or MAX_PARALLEL_REQUESTS
+    max_workers = min(max_workers, len(items))  # Don't create more workers than items
+
+    results = [None] * len(items)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks with their index
+        future_to_index = {
+            executor.submit(fetch_fn, item): i
+            for i, item in enumerate(items)
+        }
+
+        # Collect results as they complete
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
+            try:
+                results[index] = future.result()
+            except Exception as e:
+                logger.error(f"Parallel fetch error for item {index}: {e}")
+                results[index] = None
+
+    return results
+
+
+# =============================================================================
 # AUTHENTICATION
 # =============================================================================
 
@@ -492,6 +541,68 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
     # Cache the result
     _cache_set(cache_key, result, CACHE_TTL_CONVERSATION)
     return result
+
+
+def get_conversations_bulk(
+    conversation_ids: list[str],
+    include_body: bool = True
+) -> dict:
+    """
+    Get multiple conversations in parallel.
+
+    Args:
+        conversation_ids: List of conversation IDs
+        include_body: Whether to include full body
+
+    Returns:
+        Dict with results and timing info
+    """
+    import time
+
+    if not conversation_ids:
+        return {"conversations": [], "stats": {"total": 0}}
+
+    # Remove duplicates while preserving order
+    unique_ids = list(dict.fromkeys(conversation_ids))
+
+    start_time = time.time()
+
+    # Fetch in parallel using closure to pass include_body
+    def fetch_one(conv_id):
+        return get_conversation(conv_id, include_body)
+
+    results = _parallel_fetch(fetch_one, unique_ids)
+
+    elapsed = time.time() - start_time
+
+    # Build response
+    conversations = []
+    successful = 0
+    failed = 0
+    cached = 0
+
+    for conv_id, result in zip(unique_ids, results):
+        if result is not None:
+            conversations.append(result)
+            successful += 1
+            # Check if this was a cache hit (very fast = cached)
+        else:
+            failed += 1
+            conversations.append({
+                "conversation_id": conv_id,
+                "error": "Not found or invalid"
+            })
+
+    return {
+        "conversations": conversations,
+        "stats": {
+            "total": len(unique_ids),
+            "successful": successful,
+            "failed": failed,
+            "elapsed_ms": round(elapsed * 1000),
+            "avg_ms_per_conversation": round(elapsed * 1000 / len(unique_ids)) if unique_ids else 0
+        }
+    }
 
 
 def get_attachments(email_id: str) -> list[dict]:
