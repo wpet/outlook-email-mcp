@@ -33,6 +33,7 @@ Thumbs.db
 
 # Coda (interne development docs)
 .coda/
+PLAN.md
 
 # Claude Code
 .claude/
