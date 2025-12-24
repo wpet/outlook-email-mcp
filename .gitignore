@@ -1,0 +1,39 @@
+# Secrets - NOOIT COMMITTEN
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+secrets*.json
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Data
+data/cache/
+data/exports/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coda (interne development docs)
+.coda/
+
+# Claude Code
+.claude/
+.mcp.json
