@@ -40,6 +40,63 @@ _token_expiry: float = 0  # Unix timestamp
 # Request timeout in seconds
 REQUEST_TIMEOUT = 30
 
+# =============================================================================
+# CACHING
+# =============================================================================
+
+# Cache storage: {key: (value, expiry_timestamp)}
+_cache: dict[str, tuple[any, float]] = {}
+
+# Cache TTL settings (in seconds)
+CACHE_TTL_EMAIL_BODY = 3600      # 1 hour - email bodies never change
+CACHE_TTL_CONVERSATION = 300     # 5 min - new replies possible
+CACHE_TTL_ATTACHMENTS = 3600     # 1 hour - attachments don't change
+CACHE_TTL_SEARCH = 120           # 2 min - new emails come in
+
+
+def _cache_get(key: str) -> Optional[any]:
+    """Get value from cache if not expired."""
+    import time
+    if key in _cache:
+        value, expiry = _cache[key]
+        if time.time() < expiry:
+            logger.debug(f"Cache hit: {key[:50]}")
+            return value
+        else:
+            del _cache[key]
+    return None
+
+
+def _cache_set(key: str, value: any, ttl: int) -> None:
+    """Store value in cache with TTL."""
+    import time
+    _cache[key] = (value, time.time() + ttl)
+    logger.debug(f"Cache set: {key[:50]} (TTL: {ttl}s)")
+
+
+def cache_clear() -> dict:
+    """Clear all caches and return stats."""
+    global _cache
+    stats = {
+        "entries_cleared": len(_cache),
+    }
+    _cache = {}
+    logger.info(f"Cache cleared: {stats['entries_cleared']} entries")
+    return stats
+
+
+def cache_stats() -> dict:
+    """Get cache statistics."""
+    import time
+    now = time.time()
+    valid = sum(1 for _, (_, exp) in _cache.items() if exp > now)
+    expired = len(_cache) - valid
+    return {
+        "total_entries": len(_cache),
+        "valid_entries": valid,
+        "expired_entries": expired,
+    }
+
 
 # =============================================================================
 # AUTHENTICATION
@@ -302,8 +359,14 @@ def get_email_body(email_id: str, format: str = "text") -> Optional[dict]:
         format: "text" or "html"
 
     Returns:
-        Email with full body
+        Email with full body (cached for 1 hour)
     """
+    # Check cache first
+    cache_key = f"email_body:{email_id}:{format}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     endpoint = f"/users/{TARGET_USER}/messages/{email_id}"
     params = {
         "$select": "id,subject,from,toRecipients,ccRecipients,receivedDateTime,"
@@ -321,7 +384,7 @@ def get_email_body(email_id: str, format: str = "text") -> Optional[dict]:
     if format == "text" and body.get("contentType") == "html":
         body_content = _html_to_text(body_content)
 
-    return {
+    result = {
         "id": data.get("id"),
         "subject": data.get("subject", ""),
         "from": data.get("from", {}).get("emailAddress", {}),
@@ -331,6 +394,10 @@ def get_email_body(email_id: str, format: str = "text") -> Optional[dict]:
         "has_attachments": data.get("hasAttachments", False),
         "conversation_id": data.get("conversationId", "")
     }
+
+    # Cache the result
+    _cache_set(cache_key, result, CACHE_TTL_EMAIL_BODY)
+    return result
 
 
 def _is_valid_conversation_id(conversation_id: str) -> bool:
@@ -353,12 +420,18 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
         include_body: Whether to include full body
 
     Returns:
-        Conversation with all messages
+        Conversation with all messages (cached for 5 min)
     """
     # Validate conversation_id against OData injection
     if not _is_valid_conversation_id(conversation_id):
         logger.warning(f"Invalid conversation_id format: {conversation_id[:50]}...")
         return None
+
+    # Check cache first
+    cache_key = f"conversation:{conversation_id}:{include_body}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
 
     endpoint = f"/users/{TARGET_USER}/messages"
     params = {
@@ -407,7 +480,7 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
 
     dates = [m.get("receivedDateTime", "")[:10] for m in messages if m.get("receivedDateTime")]
 
-    return {
+    result = {
         "conversation_id": conversation_id,
         "subject": messages[0].get("subject", "") if messages else "",
         "participants": sorted(list(participants)),
@@ -415,6 +488,10 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
         "date_range": f"{min(dates)} to {max(dates)}" if dates else "",
         "messages": formatted_messages
     }
+
+    # Cache the result
+    _cache_set(cache_key, result, CACHE_TTL_CONVERSATION)
+    return result
 
 
 def get_attachments(email_id: str) -> list[dict]:
@@ -425,15 +502,21 @@ def get_attachments(email_id: str) -> list[dict]:
         email_id: ID of the email
 
     Returns:
-        List of attachments
+        List of attachments (cached for 1 hour)
     """
+    # Check cache first
+    cache_key = f"attachments:{email_id}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     endpoint = f"/users/{TARGET_USER}/messages/{email_id}/attachments"
     data = graph_get(endpoint)
 
     if not data:
         return []
 
-    return [
+    result = [
         {
             "id": att.get("id"),
             "name": att.get("name", ""),
@@ -443,6 +526,10 @@ def get_attachments(email_id: str) -> list[dict]:
         }
         for att in data.get("value", [])
     ]
+
+    # Cache the result
+    _cache_set(cache_key, result, CACHE_TTL_ATTACHMENTS)
+    return result
 
 
 def _html_to_text(html_content: str) -> str:
