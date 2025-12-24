@@ -120,7 +120,7 @@ If using a virtual environment:
 
 ##### Windows with WSL2 Configuration
 
-When the server runs in WSL2 but Claude Desktop runs on Windows:
+When the server runs in WSL2 but Claude Desktop runs on Windows, use the included `start.sh` script:
 
 ```json
 {
@@ -129,17 +129,35 @@ When the server runs in WSL2 but Claude Desktop runs on Windows:
       "command": "wsl.exe",
       "args": [
         "-d", "Ubuntu-24.04",
-        "-e", "bash", "-c",
-        "cd /home/ubuntu/outlook-email-mcp && source venv/bin/activate && python mcp_server/server.py"
+        "-e", "/home/ubuntu/outlook-email-mcp/mcp_server/start.sh"
       ]
     }
   }
 }
 ```
 
+The `start.sh` script handles virtual environment activation and starts the server:
+
+```bash
+#!/bin/bash
+cd /home/ubuntu/outlook-email-export
+source venv/bin/activate
+exec python mcp_server/server.py
+```
+
 Replace:
 - `Ubuntu-24.04` with your WSL distribution name (check with `wsl -l -v`)
 - `/home/ubuntu/outlook-email-mcp` with the actual path in WSL
+
+**Testing the setup:**
+
+You can verify the server starts correctly by running in PowerShell:
+
+```powershell
+wsl.exe -d Ubuntu-24.04 -e /home/ubuntu/outlook-email-mcp/mcp_server/start.sh
+```
+
+You should see: `Starting Outlook Email MCP Server...`
 
 ##### Windows Native Configuration
 
