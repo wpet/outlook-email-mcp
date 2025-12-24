@@ -24,14 +24,14 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent
 import mcp.server.stdio
 
-from src.graph_client import (
+from src.emails import (
     search_emails,
     get_email_body,
     get_conversation,
     get_conversations_bulk,
     get_attachments,
-    get_access_token
 )
+from src.auth import get_access_token
 
 # =============================================================================
 # LOGGING
