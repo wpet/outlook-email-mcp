@@ -6,8 +6,14 @@ An MCP (Model Context Protocol) server that enables Claude Code to search and an
 
 - **Search emails** - Search by sender, recipient, subject, date
 - **Get conversations** - Retrieve complete email threads
+- **Bulk conversations** - Fetch multiple conversations in parallel
 - **Read email body** - Full email content (text or HTML)
 - **List attachments** - View email attachments
+
+### Performance
+
+- **Caching** - Email bodies, conversations, and attachments are cached for faster repeated access
+- **Parallel requests** - Bulk operations execute API calls concurrently
 
 ## Installation
 
@@ -116,6 +122,7 @@ After installation, these tools are available in Claude Code:
 |------|-------------|
 | `search_emails` | Search emails with filters (from, to, subject, date) |
 | `get_conversation` | Retrieve complete email thread |
+| `get_conversations_bulk` | Fetch multiple conversations in parallel |
 | `get_email_body` | Read full email content |
 | `list_attachments` | View attachments of an email |
 
@@ -140,14 +147,26 @@ Test if the MCP server is configured correctly:
 
 You should see `outlook-email` in the list of active servers.
 
-## Files
+## Project Structure
 
 ```
 outlook-email-mcp/
 ├── src/
-│   └── graph_client.py      # Microsoft Graph API client
+│   ├── api.py               # Microsoft Graph API client
+│   ├── auth.py              # Azure AD authentication
+│   ├── cache.py             # Response caching
+│   ├── config.py            # Configuration management
+│   ├── emails.py            # Email operations
+│   └── parsing.py           # Email parsing utilities
 ├── mcp_server/
 │   └── server.py            # MCP server implementation
+├── tests/
+│   ├── test_api.py          # API tests
+│   ├── test_auth.py         # Authentication tests
+│   ├── test_cache.py        # Cache tests
+│   ├── test_emails.py       # Email operations tests
+│   ├── test_parsing.py      # Parsing tests
+│   └── test_server.py       # Server tests
 ├── .env.example             # Template for credentials
 ├── .mcp.json.example        # Template for Claude Code config
 └── requirements.txt         # Python dependencies
