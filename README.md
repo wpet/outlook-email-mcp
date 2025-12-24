@@ -51,7 +51,11 @@ AZURE_CLIENT_ID=your-client-id
 AZURE_TENANT_ID=your-tenant-id
 ```
 
-### 5. Configure Claude Code
+### 5. Configure Claude Code or Claude Desktop
+
+The MCP server can be used with both **Claude Code** (CLI) and **Claude Desktop**.
+
+#### Claude Code (CLI)
 
 Copy `.mcp.json.example` to `.mcp.json` and adjust the paths:
 
@@ -75,9 +79,88 @@ Edit `.mcp.json`:
 }
 ```
 
-### 6. Restart Claude Code
+#### Claude Desktop
 
-After configuration, restart Claude Code to load the MCP server.
+Claude Desktop uses a different configuration file location:
+
+| OS | Configuration File |
+|----|-------------------|
+| **macOS** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| **Windows** | `%APPDATA%\Claude\claude_desktop_config.json` |
+| **Linux** | `~/.config/Claude/claude_desktop_config.json` |
+
+##### macOS / Linux Configuration
+
+```json
+{
+  "mcpServers": {
+    "outlook-email": {
+      "command": "python3",
+      "args": ["/full/path/to/outlook-email-mcp/mcp_server/server.py"],
+      "env": {
+        "PYTHONPATH": "/full/path/to/outlook-email-mcp"
+      }
+    }
+  }
+}
+```
+
+If using a virtual environment:
+
+```json
+{
+  "mcpServers": {
+    "outlook-email": {
+      "command": "/full/path/to/outlook-email-mcp/venv/bin/python",
+      "args": ["/full/path/to/outlook-email-mcp/mcp_server/server.py"]
+    }
+  }
+}
+```
+
+##### Windows with WSL2 Configuration
+
+When the server runs in WSL2 but Claude Desktop runs on Windows:
+
+```json
+{
+  "mcpServers": {
+    "outlook-email": {
+      "command": "wsl.exe",
+      "args": [
+        "-d", "Ubuntu-24.04",
+        "-e", "bash", "-c",
+        "cd /home/ubuntu/outlook-email-mcp && source venv/bin/activate && python mcp_server/server.py"
+      ]
+    }
+  }
+}
+```
+
+Replace:
+- `Ubuntu-24.04` with your WSL distribution name (check with `wsl -l -v`)
+- `/home/ubuntu/outlook-email-mcp` with the actual path in WSL
+
+##### Windows Native Configuration
+
+When running natively on Windows (no WSL):
+
+```json
+{
+  "mcpServers": {
+    "outlook-email": {
+      "command": "C:\\path\\to\\outlook-email-mcp\\venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\outlook-email-mcp\\mcp_server\\server.py"]
+    }
+  }
+}
+```
+
+### 6. Restart Claude Code / Claude Desktop
+
+After configuration, fully restart the application:
+- **Claude Code**: Restart the CLI
+- **Claude Desktop**: Quit completely (including system tray on Windows) and restart
 
 ## Azure App Registration
 
