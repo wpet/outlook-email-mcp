@@ -64,7 +64,9 @@ Use this tool to find emails based on:
 - Date range
 - Search term in all fields
 
-Returns a list of emails with subject, sender, date and preview.""",
+Returns a list of emails with subject, sender, date and preview.
+
+Use deep_search=true to search through all emails (slower but finds older emails).""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -106,6 +108,11 @@ Returns a list of emails with subject, sender, date and preview.""",
                         "minimum": 1,
                         "maximum": 100,
                         "description": "Maximum number of results"
+                    },
+                    "deep_search": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Search through all emails (slower but more thorough, finds older emails)"
                     }
                 },
                 "required": []
@@ -262,7 +269,8 @@ async def handle_search_emails(args: dict) -> dict:
         subject_contains=args.get("subject_contains"),
         since=args.get("since"),
         until=args.get("until"),
-        limit=args.get("limit", 20)
+        limit=args.get("limit", 20),
+        deep_search=args.get("deep_search", False)
     )
 
     return {

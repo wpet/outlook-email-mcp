@@ -54,7 +54,8 @@ def search_emails(
     subject_contains: str = None,
     since: str = None,
     until: str = None,
-    limit: int = 50
+    limit: int = 50,
+    deep_search: bool = False
 ) -> list[dict]:
     """
     Search emails with various filters.
@@ -68,11 +69,17 @@ def search_emails(
         since: From date (YYYY-MM-DD)
         until: To date (YYYY-MM-DD)
         limit: Maximum results
+        deep_search: If True, continues pagination until date boundary (for older emails)
 
     Returns:
         List of email objects
+
+    Strategy:
+        - If only date filters: use $filter (server-side, very fast)
+        - If search query: use $search with smart pagination (stop at date boundary)
+        - deep_search: continue until we pass the 'since' date (finds older emails)
     """
-    # Build search query
+    # Build search query for $search parameter
     search_parts = []
 
     if query:
@@ -92,7 +99,7 @@ def search_emails(
                 f'"from:{search_term}" OR "to:{search_term}" OR "subject:{search_term}"'
             )
 
-    # Extra filters
+    # Extra filters for $search
     if from_address:
         search_parts.append(f'"from:{from_address}"')
     if to_address:
@@ -102,29 +109,90 @@ def search_emails(
 
     search_query = " AND ".join(search_parts) if search_parts else None
 
+    # Build $filter for date range (server-side filtering)
+    filter_parts = []
+    if since:
+        filter_parts.append(f"receivedDateTime ge {since}T00:00:00Z")
+    if until:
+        filter_parts.append(f"receivedDateTime le {until}T23:59:59Z")
+    filter_query = " and ".join(filter_parts) if filter_parts else None
+
     # API request
     endpoint = "/me/messages"
     params = {
-        "$top": min(limit, 50),
+        "$top": 50,  # Max per page
         "$select": "id,subject,from,toRecipients,ccRecipients,receivedDateTime,"
                    "bodyPreview,hasAttachments,conversationId,importance",
         "$orderby": "receivedDateTime desc"
     }
 
-    # Only add $search if there is a search term
-    if search_query:
+    # Strategy: $filter is much faster but can't combine with $search
+    # - Dates only (no query): use $filter (server-side, very fast)
+    # - Query only: use $search with pagination
+    # - Query + dates: use $filter for dates, client-side filter for query
+    #   (this is faster than $search which returns by relevance, not date)
+
+    has_text_query = bool(query or from_address or to_address or subject_contains)
+    has_date_filter = bool(since or until)
+
+    if has_date_filter:
+        # Always use $filter for dates - much more efficient
+        params["$filter"] = filter_query
+        # Don't use $search - it can't combine with $filter
+        # We'll do text matching client-side
+    elif search_query:
+        # No dates, use $search for text queries
         params["$search"] = search_query
 
-    all_emails = []
-    fetch_limit = limit * 3  # Overfetch for client-side filtering
+    filtered = []
+    pages_fetched = 0
 
-    while endpoint and len(all_emails) < fetch_limit:
+    # Smart limits based on context
+    if has_date_filter:
+        # Server-side date filtering is fast, allow many pages
+        # The date range naturally limits results
+        max_pages = 200
+    elif deep_search:
+        # Deep search without date: allow more pages
+        max_pages = 50
+    else:
+        # Normal search: stop early
+        max_pages = 10
+
+    while endpoint and pages_fetched < max_pages:
         data = graph_get(endpoint, params)
         if not data:
             break
 
         emails = data.get("value", [])
-        all_emails.extend(emails)
+        if not emails:
+            break
+
+        pages_fetched += 1
+        oldest_date_in_batch = None
+
+        for email in emails:
+            email_date = email.get("receivedDateTime", "")[:10]
+            oldest_date_in_batch = email_date
+
+            # Check if email matches our criteria
+            if _email_matches(email, query, field, from_address, to_address, subject_contains, since, until):
+                filtered.append(format_email_summary(email))
+
+                # Early exit if we have enough results
+                if len(filtered) >= limit:
+                    logger.info(f"Search complete: found {len(filtered)} matches in {pages_fetched} pages")
+                    return filtered
+
+        # For $filter queries (date-based), we can use date boundary for early exit
+        # because results are ordered by date desc
+        if has_date_filter and since and oldest_date_in_batch and oldest_date_in_batch < since:
+            logger.info(f"Reached date boundary ({oldest_date_in_batch} < {since}), stopping")
+            break
+
+        # For non-date searches without deep_search, stop after finding some results
+        if not deep_search and not has_date_filter and len(filtered) > 0 and pages_fetched >= 3:
+            break
 
         # Next page
         next_link = data.get("@odata.nextLink")
@@ -134,14 +202,11 @@ def search_emails(
         else:
             break
 
-    # Client-side filtering for exact matches
-    filtered = []
-    for email in all_emails:
-        if _email_matches(email, query, field, from_address, to_address, subject_contains, since, until):
-            filtered.append(format_email_summary(email))
-            if len(filtered) >= limit:
-                break
+        # Progress logging for longer searches
+        if pages_fetched % 20 == 0:
+            logger.info(f"Search progress: {pages_fetched} pages, {len(filtered)} matches so far")
 
+    logger.info(f"Search complete: {len(filtered)} matches found in {pages_fetched} pages")
     return filtered
 
 
@@ -159,16 +224,16 @@ def _email_matches(
     # Query match
     if query:
         query_lower = query.lower()
-        from_addr = email.get("from", {}).get("emailAddress", {}).get("address", "").lower()
+        from_addr = (email.get("from", {}).get("emailAddress", {}).get("address") or "").lower()
         to_addrs = [
-            r.get("emailAddress", {}).get("address", "").lower()
+            (r.get("emailAddress", {}).get("address") or "").lower()
             for r in email.get("toRecipients", [])
         ]
         cc_addrs = [
-            r.get("emailAddress", {}).get("address", "").lower()
+            (r.get("emailAddress", {}).get("address") or "").lower()
             for r in email.get("ccRecipients", [])
         ]
-        subject = email.get("subject", "").lower()
+        subject = (email.get("subject") or "").lower()
 
         if field == "from" and query_lower not in from_addr:
             return False
