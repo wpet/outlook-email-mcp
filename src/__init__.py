@@ -5,7 +5,6 @@ Public API exports for email operations.
 """
 
 from .config import (
-    TARGET_USER,
     GRAPH_ENDPOINT,
     REQUEST_TIMEOUT,
     MAX_PARALLEL_REQUESTS,
@@ -26,7 +25,7 @@ from .cache import (
 from .auth import (
     get_access_token,
     clear_token_cache,
-    is_token_valid,
+    is_authenticated,
 )
 
 from .api import (
@@ -56,7 +55,6 @@ from .emails import (
 
 __all__ = [
     # Config
-    "TARGET_USER",
     "GRAPH_ENDPOINT",
     "REQUEST_TIMEOUT",
     "MAX_PARALLEL_REQUESTS",
@@ -73,7 +71,7 @@ __all__ = [
     # Auth
     "get_access_token",
     "clear_token_cache",
-    "is_token_valid",
+    "is_authenticated",
     # API
     "graph_get",
     "graph_post",

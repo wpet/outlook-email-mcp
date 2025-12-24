@@ -185,9 +185,15 @@ def mock_access_token():
 
 @pytest.fixture
 def mock_msal_app():
-    """Mock MSAL ConfidentialClientApplication."""
+    """Mock MSAL PublicClientApplication."""
     mock_app = MagicMock()
-    mock_app.acquire_token_for_client.return_value = {
+    mock_app.get_accounts.return_value = [{"username": "test@example.com"}]
+    mock_app.acquire_token_silent.return_value = {
+        "access_token": "test_token_123",
+        "expires_in": 3600,
+        "token_type": "Bearer"
+    }
+    mock_app.acquire_token_interactive.return_value = {
         "access_token": "test_token_123",
         "expires_in": 3600,
         "token_type": "Bearer"
@@ -222,17 +228,14 @@ def clear_caches():
     """Clear all caches before each test."""
     # Import here to avoid circular imports
     from src.cache import cache_clear
-    from src.auth import clear_token_cache
 
     # Clear before test
     cache_clear()
-    clear_token_cache()
 
     yield
 
     # Clear after test
     cache_clear()
-    clear_token_cache()
 
 
 # =============================================================================
@@ -244,9 +247,7 @@ def mock_env_vars():
     """Mock environment variables for testing."""
     env_vars = {
         "AZURE_CLIENT_ID": "test-client-id",
-        "AZURE_TENANT_ID": "test-tenant-id",
-        "AZURE_CLIENT_SECRET": "test-client-secret",
-        "AZURE_TARGET_USER": "test@example.com"
+        "AZURE_TENANT_ID": "test-tenant-id"
     }
     with patch.dict("os.environ", env_vars):
         yield env_vars
