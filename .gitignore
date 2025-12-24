@@ -6,6 +6,7 @@
 *.key
 credentials*.json
 secrets*.json
+token_cache.json
 
 # Python
 venv/

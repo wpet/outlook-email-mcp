@@ -49,8 +49,6 @@ Edit `.env` with your Azure credentials:
 ```env
 AZURE_CLIENT_ID=your-client-id
 AZURE_TENANT_ID=your-tenant-id
-AZURE_CLIENT_SECRET=your-client-secret
-AZURE_TARGET_USER=user@domain.com
 ```
 
 ### 5. Configure Claude Code
@@ -97,22 +95,32 @@ After configuration, restart Claude Code to load the MCP server.
 - **Application (client) ID** → `AZURE_CLIENT_ID`
 - **Directory (tenant) ID** → `AZURE_TENANT_ID`
 
-### Step 3: Create Client Secret
+### Step 3: Configure as Public Client
 
-1. Go to "Certificates & secrets"
-2. Click "New client secret"
-3. Copy the value → `AZURE_CLIENT_SECRET`
+1. Go to "Authentication"
+2. Click "Add a platform"
+3. Choose "Mobile and desktop applications"
+4. Select the redirect URI: `https://login.microsoftonline.com/common/oauth2/nativeclient`
+5. Under "Advanced settings", set **Allow public client flows** to **Yes**
+6. Click "Save"
 
 ### Step 4: Configure API Permissions
 
 1. Go to "API permissions"
 2. Click "Add a permission"
 3. Choose "Microsoft Graph"
-4. Choose "Application permissions"
+4. Choose "Delegated permissions"
 5. Add:
-   - `Mail.Read` - Read emails
-   - `User.Read.All` - Look up users
-6. Click "Grant admin consent"
+   - `Mail.Read` - Read user mail
+   - `User.Read` - Sign in and read user profile
+6. Click "Add permissions"
+
+Note: Admin consent is not required for delegated permissions.
+
+### Step 5: First-time Login
+
+On first use, a browser window will open for authentication.
+After login, the token is cached in `token_cache.json` for subsequent use.
 
 ## Usage
 
@@ -175,8 +183,8 @@ outlook-email-mcp/
 ## Security
 
 - Credentials are loaded from `.env` (not in git)
+- Token cached in `token_cache.json` (not in git)
 - Request timeout: 30 seconds
-- Token caching with expiry validation
 - OData injection prevention on conversation_id
 
 ## License

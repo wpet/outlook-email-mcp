@@ -24,15 +24,16 @@ load_dotenv(ENV_FILE)
 
 CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
-CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
-TARGET_USER = os.getenv("AZURE_TARGET_USER")
 
 # =============================================================================
 # API CONFIGURATION
 # =============================================================================
 
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-SCOPES = ["https://graph.microsoft.com/.default"]
+SCOPES = ["Mail.Read", "User.Read"]
+
+# Token cache file for persistent login
+TOKEN_CACHE_FILE = Path(__file__).parent.parent / "token_cache.json"
 GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0"
 
 # Request timeout in seconds

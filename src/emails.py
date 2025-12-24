@@ -9,7 +9,6 @@ import logging
 from typing import Optional
 
 from .config import (
-    TARGET_USER,
     GRAPH_ENDPOINT,
     CACHE_TTL_EMAIL_BODY,
     CACHE_TTL_CONVERSATION,
@@ -104,7 +103,7 @@ def search_emails(
     search_query = " AND ".join(search_parts) if search_parts else None
 
     # API request
-    endpoint = f"/users/{TARGET_USER}/messages"
+    endpoint = "/me/messages"
     params = {
         "$top": min(limit, 50),
         "$select": "id,subject,from,toRecipients,ccRecipients,receivedDateTime,"
@@ -217,7 +216,7 @@ def get_email_body(email_id: str, format: str = "text") -> Optional[dict]:
     if cached is not None:
         return cached
 
-    endpoint = f"/users/{TARGET_USER}/messages/{email_id}"
+    endpoint = f"/me/messages/{email_id}"
     params = {
         "$select": "id,subject,from,toRecipients,ccRecipients,receivedDateTime,"
                    "body,hasAttachments,conversationId"
@@ -260,7 +259,7 @@ def get_conversation(conversation_id: str, include_body: bool = True) -> Optiona
     if cached is not None:
         return cached
 
-    endpoint = f"/users/{TARGET_USER}/messages"
+    endpoint = "/me/messages"
     params = {
         "$filter": f"conversationId eq '{conversation_id}'",
         "$select": "id,subject,from,toRecipients,receivedDateTime,bodyPreview,body",
@@ -391,7 +390,7 @@ def get_attachments(email_id: str) -> list[dict]:
     if cached is not None:
         return cached
 
-    endpoint = f"/users/{TARGET_USER}/messages/{email_id}/attachments"
+    endpoint = f"/me/messages/{email_id}/attachments"
     data = graph_get(endpoint)
 
     if not data:
@@ -423,7 +422,7 @@ def test_connection() -> bool:
 
     token = get_access_token()
     if token:
-        print(f"Connection OK - Target: {TARGET_USER}")
+        print("Connection OK")
         # Test a simple query
         emails = search_emails("", limit=1)
         if emails:
